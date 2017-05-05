@@ -1,0 +1,113 @@
+#JavaScript--闭包理解
+
+学习JavaScript，肯定会接触到闭包。
+如果是刚接触js的，往往难以清楚理解。
+
+##	闭包是什么
+
+函数对象通过作用域链相互关联起来，函数体内部的变量都可以保存在函数作用域内，这特性在计算机科学文献中就被称为“**闭包**”
+
+从技术角度看，所有js函数都是闭包：它们都是对象，都关联到作用域链。定义大多数函数的作用域链在调用函数时依然有效，但这不影响闭包。
+
+看一个嵌套函数：
+```
+var scope="global";//全局变量
+function checkscope(){
+	var scope="local";//局部变量
+	function f(){return scope;}//在作用域中返回该值
+	return f;
+}
+checkscope()();//local
+```
+代码中的f函数，就是闭包。
+我的理解：闭包就是能够读取其他函数内部变量的函数。
+
+在Javascript语言中，只有函数内部的子函数才能读取局部变量，因此可以把闭包简单理解成"定义在一个函数内部的函数"。
+所以，在本质上，闭包就是将函数内部和函数外部连接起来的一座桥梁。
+
+**闭包可以捕捉局部变量（和参数）并保存**
+
+---
+##闭包特点及用途
+
+特点
+
+- 作为一个函数变量的一个引用，当函数返回时，其处于激活状态。
+- 一个闭包就是当一个函数返回时，一个没有释放资源的栈区。
+
+用途
+
+- 读取函数内部的变量
+
+- 保持变量的值始终在内存中
+
+##使用闭包做计数器
+
+```
+function counter(){
+	var n=0;
+	return {
+		count:function(){return n++;},
+		reset:function(){n=0;}
+		};
+}
+var a=counter(),d=counter();
+c.count();//0
+d.count();//0	两者互不影响
+c.count();//1	
+```
+
+---
+
+## 闭包的常见写法
+
+1.对象赋值调用写法
+
+```
+var a= new Object();  
+a.pow= function(r) {  
+       return  r * r;  
+};
+consol.log(a.pow(1.0));
+```
+2.声明对象调用写法
+
+```
+var a={  
+	pow: function(r){  
+	         return  r * r;  
+        }  
+};  
+console.log(a.pow(1.0))
+```
+3.匿名函数调用写法
+
+```
+(function(r){  
+	    var pow=r * r;  
+		console.log(pow);      
+        }  )(1.0);
+```
+4.函数返回值写法
+
+```
+function a(r){
+	function pow(){
+		return  r * r;
+	}
+	return area();
+}
+console.log(a(1.0));
+```
+5.原型调用写法
+
+```
+function a(r) {  
+	this.r = r;  
+}  
+a.prototype.pow= function() {  
+	return  this.r * this.r;  
+}
+var c = new a(1.0);     
+console.log(c.pow()); 
+```
