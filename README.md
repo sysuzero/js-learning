@@ -1,2 +1,3 @@
-# js-demo
-学习js做的一些demo
+# js-learning
+
+js做的一些demo和笔记
