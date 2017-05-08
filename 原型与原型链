@@ -1,0 +1,184 @@
+JavaScript对于有基于类的语言经验的开发人员来说有点令人困惑 (如Java或C ++) ，因为它是动态的，并且本身不提供类实现.。(在ES2015/ES6中引入了class关键字，但是只是语法糖，JavaScript 仍然是基于原型的)。
+
+当谈到继承时，Javascript 只有一种结构：对象。每个对象都有一个内部链接到另一个对象，称为它的原型 prototype。该原型对象有自己的原型，等等，直到达到一个以null为原型的对象。根据定义，null没有原型，并且作为这个原型链 prototype chain中的最终链接。
+
+##1/普通对象-函数对象-原型对象
+JavaScript 中，万物皆对象！但对象也是有区别的。分为普通对象和函数对象，Object ，Function 是JS自带的函数对象。
+```
+//用函数定义的三个方法定义函数
+function f1(){};  //函数声明
+var f2 = function(){};  //函数表达式
+var f3 = new Function('str','console.log(str)'); //函数实例化
+
+// 创建对象
+var o1 = new f1();  //函数对象
+var o2 = {}; //对象赋值
+var o3 = new Object(); //创建对象
+
+
+//检测类型
+console.log(typeof Object);  //function
+console.log(typeof Function);  //function
+console.log(typeof o1);  //object
+console.log(typeof o2);  //object
+console.log(typeof o3);  //object
+console.log(typeof f1);  //function
+console.log(typeof f2);  //function
+console.log(typeof f3);  //function
+```
+在上面的例子中 o1 o2 o3 为普通对象，f1 f2 f3 为函数对象。怎么区分，其实很简单，凡是通过 new Function() 创建的对象都是函数对象，其他的都是普通对象。f1,f2,归根结底都是通过 new Function()的方式进行创建的。Function Object 也都是通过 New Function()创建的。Object：Object是一个函数对象，Object的原型就是一个Object对象，它里面存在着一些对象的方法和属性，例如最常见的toString方法。
+
+在JavaScript 中，每当定义一个对象（函数）时候，对象中都会包含一些预定义的属性。其中函数对象的一个属性就是原型对象 prototype。注：普通对象没有prototype,但有_proto_属性。
+```
+console.log(Object.prototype); //Object{}
+var o = new Object();
+console.log(o.prototype);  //undefined
+console.log(Array.prototype); //[Symbol(Symbol.unscopables): Object]
+console.log(Function.prototype); //function(){}
+function hello(){
+	console.log("hello");
+}
+hello.prototype = "hello world";
+console.log(hello.prototype); //hello world
+```
+新建对象：用new Object或者{}建的对象是普通对象，它没有prototype属性，只有__proto__属性，它指向Object.prototype。
+Array：Array也是一个函数对象，它的原型就是Array.prototype，它里面存在着一些数组的方法和属性，例如常见的push，pop等方法。
+Function：Function也是一个函数对象，但它有点特殊，它的原型就是一个function空函数。
+自定义函数：它的原型就是你给它指定的那个东西。如果你不指定，那它的原型就是一个Object.prototype。
+##2/原型链
+JS在创建对象（不论是普通对象还是函数对象）的时候，都有一个叫做proto的内置属性，用于指向创建它的函数对象的原型对象prototype。
+```
+function Student(props) {
+    this.name = props.name || 'Unnamed';
+}
+
+Student.prototype.hello = function () {
+    alert('Hello, ' + this.name + '!');
+}
+```
+![这里写图片描述](http://www.liaoxuefeng.com/files/attachments/001439872136313496e60e07ed143bda40a0200b12d8cc3000/l)
+在 javaScript 中，每个对象都有一个指向它的原型（prototype）对象的内部链接。这个原型对象又有自己的原型，直到某个对象的原型为 null 为止（也就是不再有原型指向），组成这条链的最后一环。这种一级一级的链结构就称为原型链（prototype chain）。
+简单的说：
+```
+var o = {
+	a:1,
+	b:2
+};
+console.log(o.toString()); //不报错，o上没有toString方法，但是Object上有
+console.log(o.push("c")); //报错，o上没有这个方法，Object上也没有这个方法。
+console.log(o.a); //1
+console.log(o.c); //undefined
+```
+用new Object或者直接定义一个对象时，它的原型链就是： o ==》 Object.prototype ==》 null 但你访问o上没有的属性或方法时，JS会往Object.prototype上寻找该属性和方法。如果有则直接返回，如果没有，方法则报错，这个方法未定义，属性则返回undefined。
+
+假如我们要在student的例子上扩展出一个新函数
+```
+function PrimaryStudent(props) {
+    // 调用Student构造函数，绑定this变量:
+    Student.call(this, props);
+    this.grade = props.grade || 1;
+}
+```
+因为调用了Student构造函数不等于继承了Student，PrimaryStudent创建的对象的原型是：
+
+new PrimaryStudent() ----> PrimaryStudent.prototype ----> Object.prototype ----> null
+所以必须改成
+new PrimaryStudent() ----> PrimaryStudent.prototype ----> Student.prototype ----> Object.prototype ----> null
+这样，原型链对了，继承关系就对了。新的基于PrimaryStudent创建的对象不但能调用PrimaryStudent.prototype定义的方法，也可以调用Student.prototype定义的方法。
+
+假如我们这么做：
+
+```
+PrimaryStudent.prototype = Student.prototype;
+```
+PrimaryStudent和Student共享一个原型对象，那还要定义PrimaryStudent干啥？
+
+所以，我们必须借助一个中间对象来实现正确的原型链，这个中间对象的原型要指向Student.prototype。为了实现这一点，参考道爷（就是发明JSON的那个道格拉斯）的代码，中间对象可以用一个空函数F来实现：、
+```
+// PrimaryStudent构造函数:
+function PrimaryStudent(props) {
+    Student.call(this, props);
+    this.grade = props.grade || 1;
+}
+
+// 空函数F:
+function F() {
+}
+
+// 把F的原型指向Student.prototype:
+F.prototype = Student.prototype;
+
+// 把PrimaryStudent的原型指向一个新的F对象，F对象的原型正好指向Student.prototype:
+PrimaryStudent.prototype = new F();
+
+// 把PrimaryStudent原型的构造函数修复为PrimaryStudent:
+PrimaryStudent.prototype.constructor = PrimaryStudent;
+
+// 继续在PrimaryStudent原型（就是new F()对象）上定义方法：
+PrimaryStudent.prototype.getGrade = function () {
+    return this.grade;
+};
+
+// 创建xiaoming:
+var xiaoming = new PrimaryStudent({
+    name: '小明',
+    grade: 2
+});
+xiaoming.name; // '小明'
+xiaoming.grade; // 2
+
+// 验证原型:
+xiaoming.__proto__ === PrimaryStudent.prototype; // true
+xiaoming.__proto__.__proto__ === Student.prototype; // true
+
+// 验证继承关系:
+xiaoming instanceof PrimaryStudent; // true
+xiaoming instanceof Student; // true
+```
+此时原型链就是
+![这里写图片描述](http://www.liaoxuefeng.com/files/attachments/001439872160923ca15925ec79f4692a98404ddb2ed5503000/l)
+##3/prototype与proto（隐式原型）和constructor属性
+　
+原型属性prototype指向函数自身的原型，而由这个函数创建的对象也有一个proto属性指向这个原型，而函数的原型是一个对象，所以这个对象也会有一个proto指向自己的原型，这样逐层深入直到Object对象的原型，这样就形成了原型链。普通对象没有prototype，但有proto属性。构造函数有一个prototype属性，指向实例对象的原型对象。通过同一个构造函数实例化的多个对象具有相同的原型对象。
+
+	函数.prototype也是一个普通对象，Function.prototype除外,它是函数对象，但它很特殊，他没有prototype属性
+		
+	JS在创建对象（不论是普通对象还是函数对象）的时候，都有一个叫做__proto__的内置属性，用于指向创建它的函数对象的原型对象prototype。
+```javascript
+function f1(){};
+console.log(f1.prototype) //Object{}
+console.log(typeof f1.prototype) //Object
+console.log(typeof Function.prototype) // Function，这个特殊
+console.log(typeof Object.prototype) //Object
+console.log(typeof Function.prototype.prototype) //undefined
+
+function Foo(){};
+var f1 = new Foo;
+console.log(f1.__proto__ === Foo.prototype);//true
+```
+	原型对象prototype中都有个预定义的constructor属性，用来引用它的函数对象。这是一种循环引用：
+
+```javascript
+function Foo(){};
+console.log(Foo.prototype.constructor === Foo);//true
+```
+
+用构造函数创建的对象，它的constructor属性就是它的构造函数。
+```javascript
+function Person(name){
+	this.name = name;
+}
+var person = new Person();
+console.log(person.constructor === Person); //true
+
+```
+
+##小结
+1. _proto_:任何一个对象Object都有_proto_，它是每一个对象的私有属性，是天生自带的。
+2. prototype:不是任何对象都有prototype，只有构造函数有prototype，是后天赋予的。
+3. 调用一个对象的属性或方法，一但这个对象中没有，就去这个对象的_proto_中查找。这个对象的_proto_指向自己构造函数的prototype属性
+4. 在使用New方法初始化函数的时候（详细点击查看new的深度理解）得到的新对象的__proto__属性会指向函数对象的原型对象，而函数对象的原型对象又继承至原始对象。
+参考：
+https://github.com/tsrot/study-notes/edit/master/JS%E7%9A%84%E5%8E%9F%E5%9E%8B%E5%92%8C%E5%8E%9F%E5%9E%8B%E9%93%BE.md
+http://www.liaoxuefeng.com/wiki/001434446689867b27157e896e74d51a89c25cc8b43bdb3000/0014344997013405abfb7f0e1904a04ba6898a384b1e925000
+https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Inheritance_and_the_prototype_chain
