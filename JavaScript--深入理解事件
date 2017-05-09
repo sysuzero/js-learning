@@ -1,0 +1,115 @@
+近期看Trevor  Burnham写的《JavaScript异步编程》，这本书更深入透彻地讲述了JavaScript的事件
+
+理解一下JS中的同步异步以及事件
+
+##单线程
+
+我们常说“JavaScript是单线程的”。
+
+>所谓单线程，是指在JS引擎中负责解释和执行JavaScript代码的线程只有一个。不妨叫它主线程。
+
+##事件调度
+
+如果想让 JavaScript 中的某段代码将来再运行，可以将它放在回调中。
+回调就是一种普通函数，只不过它是传给像 setTimeout 这样的函数，或者绑定为像 document.onready 这样的属性。运行回调时，我们称已触发某事件（譬如延时结束或页面加载完毕）。
+
+- setTimeout(code,millisec)
+setTimeout函数接受两个参数，第一个参数code是将要推迟执行的函数名或者一段代码，第二个参数millisec是推迟执行的毫秒数。
+
+```
+setTimeout('console.log(2)',100);
+setTimeout(function(){console.log(2)},100);
+
+```
+### 现在运行还是将来？
+```
+for (var i = 1; i <= 3; i++) {
+setTimeout(function(){ console.log(i); }, 0);
+// 4 4 4
+};
+```
+假如刚接触JS，大部分会认为输出123，或者重复输出这3个数字，因为这里的 3 次延时都抢着要第一个触发
+（每次暂停都调度为 0 毫秒后到时）。
+
+**那么怎么理解呢？**
+
+1. 这里只有一个名为 i 的变量，其作用域由声明语句 var i 定义（该声明语句在不经意间让 i 的作用域不是循环内部，而是扩散至蕴含循环的那个最内侧函数）。
+2. 循环结束后， i===4 一直递增，直到不再满足条件 i<=3 为止。
+3. JavaScript 事件处理器在线程空闲之前不会运行
+
+### 线程阻塞是什么？
+看一个例子
+```
+var start = new Date;
+setTimeout(function(){
+	var end = new Date;
+	console.log('Time elapsed:', end - start,'ms');
+}, 500);
+while (new Date - start < 1000) {};
+```
+按照多线程的思维定势，我们会预计 500 毫秒后计时函数就会运行。然而我们得到的结果是：
+```
+Time elapsed: 1002ms
+```
+**因为 setTimeout 回调在 while循环结束运行之前不可能被触发。**
+
+###队列
+**事实上，调用setTimeout函数时会有一个延时事件排入队列**，在setTimeout 调用之后的那行代码运行，接着是再下一行代码，直到再也没有任何代码。
+
+输入事件的工作方式完全一样：用户单击一个已附加有单击事件处理器的 DOM元素时，会有一个单击事件排入队列。但是，该单击事件处理器要等到当前所有正在运行的代码均已结束后（可能还要等其他此前已排队的事件也依次结束）才会执行。因此，使用 JavaScript 的那些网页一不小心就会变得毫无反应。
+
+在异步执行的运行机制如下。（同步执行也是如此，因为它可以被视为没有异步任务的异步执行。）
+
+- （1）所有同步任务都在主线程上执行，形成一个执行栈（execution context stack）。
+- （2）主线程之外，还存在一个"任务队列"（task queue）。只要异步任务有了运行结果，就在"任务队列"之中放置一个事件。
+- （3）一旦"执行栈"中的所有同步任务执行完毕，系统就会读取"任务队列"，看看里面有哪些事件。那些对应的异步任务，于是结束等待状态，进入执行栈，开始执行。
+- （4）主线程不断重复上面的第三步。
+
+![这里写图片描述](http://img.blog.csdn.net/20170505170215520?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvY2F0X2ZvdXJzaQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+##事件循环
+
+是用来描述队列工作方式
+
+![这里写图片描述](http://img.blog.csdn.net/20170505170852263?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvY2F0X2ZvdXJzaQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+>主线程运行的时候，产生堆（heap）和栈（stack），栈中的代码调用各种外部API，它们在"任务队列"中加入各种事件（click，load，done）。只要栈中的代码执行完毕，主线程就会去读取"任务队列"，依次执行那些事件所对应的回调函数。
+执行栈中的代码（同步任务），总是在读取"任务队列"（异步任务）之前执行。
+
+在上图中的callback queue中指的是 “任务队列”，也可以理解为消息的队列，“消息“我们可以简单理解为是：注册异步任务时添加的回调函数。
+
+拿一道阿里的笔试题做例子：
+
+```
+console.log(1);
+
+setTimeout(function(){
+    console.log(2);
+},300);
+
+setTimeout(function(){
+    console.log(3)
+},400);
+for (var i = 0;i<10000;i++) {
+    console.log(4);
+}
+
+setTimeout(function(){
+    console.log(5);
+},100);
+```
+这个输出是什么呢？
+结果是
+```
+1
+10000*4
+2
+3
+5
+```
+分析：
+　因为for循环比较耗时，所以在定时器加入队列后，主线程还在执行for循环中的代码，处于阻塞状态。当for循环结束，这时才将第三个定时器加入队列，清空执行栈。虽然第三个的延迟时间最短，但在任务队列中顺序最后，所以此时按顺序执行任务队列中的代码，依次打印2、3、5。
+
+思考：
+	假如第二个定时器延迟时间比第一个短呢？
+	如果setTimeout加入队列的阻塞时间大于两个setTimeout执行的间隔时间，那么先加入任务队列的先执行，尽管它里面设置的时间可能比另一个setTimeout的要大
