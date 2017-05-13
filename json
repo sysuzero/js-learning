@@ -1,0 +1,45 @@
+最近笔试面试这个问题貌似被问挺多的，所以就来写写加深下印象
+
+
+##暴力解法
+##浅复制
+```
+  let a = { x: 10, y: [20, 5]}
+  let b = JSON.parse(JSON.stringify(a))
+```
+但这样不能拷贝函数，并且会丢失原型链。或者
+```
+var obj = { a:1, arr: [2,3] };
+var obj = Copy(obj);
+
+function Copy(src) {
+  var new = {};
+  for (var prop in src) {
+    if (src.hasOwnProperty(prop)) {
+      new[prop] = src[prop];
+    }
+  }
+  return new;
+}
+
+```
+
+
+###深复制
+
+递归：
+
+```
+　　function deepCopy(p, c) {
+　　　　var c = c || {};
+　　　　for (var i in p) {
+　　　　　　if (typeof p[i] === 'object') {
+　　　　　　　　c[i] = (p[i].constructor === Array) ? [] : {};
+　　　　　　　　deepCopy(p[i], c[i]);
+　　　　　　} else {
+　　　　　　　　　c[i] = p[i];
+　　　　　　}
+　　　　}
+　　　　return c;
+　　}
+```
