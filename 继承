@@ -1,0 +1,91 @@
+在JavaScript中只支持实现继承不支持接口继承。其实现方式主要是通过原型链来实现的。
+要了解继承首先要了解原型链。继承的基本思想是利用原型让一个引用类型继承另一个引用类型的属性和方法。
+先简单回顾一下构造函数、原型和实例的关系：每个构造函数和实例都有一个[prototype]属性，这个属性是一个指向原型对象的内部指针，在每个原型对象中都包含一个指向构造函数的指针。如图所示：
+![这里写图片描述](http://img.blog.csdn.net/20170513214508246?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvY2F0X2ZvdXJzaQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+先提供一个父类：
+人都有名字和年龄以及说话的能力，所以把say放在原型对象上，让每个实例享用
+```
+function Person (name, age) {
+    this.name = name;
+    this.age = age;
+}
+Person.prototype.say = function(){
+    console.log('hello, my name is ' + this.name);
+};
+
+```
+
+再设计一个实例Man：
+Man想继承Person的基本属性，而且Man是Man不只是一个普通的Person，所以还得在这些基础上增加自己特有属性
+
+```
+function Man() {
+    //my own properties
+}
+```
+
+##1.原型链继承
+
+```
+
+Man.prototype = new Person('pursue');
+var man1 = new Man();
+man1.say(); //hello, my name is pursue
+var man2 = new Man();
+console.log(man1.say === man2.say);//true
+console.log(man1.name === man2.name);//true
+```
+为了获取Person的所有属性方法(实例上的和原型上的)，直接将父类的实例new Person('pursue')赋给了子类的原型，其实子类的实例man1,man2本身是一个完全空的对象，所有的属性和方法都得去原型链上去找，因而找到的属性方法都是同一个。
+所以直接利用原型链继承是其实是不太行的。
+##2.利用构造函数继承
+```
+function Man(name, age) {
+    Person.apply(this, arguments);
+}
+//Man.prototype = new Person('pursue');
+var man1 = new Man('joe');
+var man2 = new Man('david');
+console.log(man1.name === man2.name);//false
+man1.say(); //say is not a function
+```
+这里子类的在构造函数里利用了apply去调用父类的构造函数，从而达到继承父类属性的效果，每个实例都有自己那一份资源，但是这种办法只能继承父类的实例属性，因而找不到say方法，为了继承父类所有的属性和方法，则就要修改原型链，从而引入了组合继承方式。
+
+##3.组合继承
+```
+function Man(name, age) {
+    Person.apply(this, arguments);
+}
+Man.prototype = new Person();
+var man1 = new Man('joe');
+var man2 = new Man('david');
+console.log(man1.name === man2.name);//false
+console.log(man1.say === man2.say);//true
+man1.say(); //hello, my name is joe
+```
+注意：man1和man2的实例属性覆盖了原型属性，但是并没要覆盖掉原型上的say方法（因为它们没有），所以这里man1.say === man2.say依然返回true，因而需要十分小心没有覆盖掉的原型属性，因为它是所有实例共有的。
+
+##4.**寄生组合继承**
+最经典的javascript的继承方式。
+其实，只需要明白原型对象的结构即可：
+``` 
+function Man(name, age) {
+    Person.apply(this, arguments);
+}
+Man.prototype = Object.create(Person.prototype);//
+Man.prototype.constructor = Man;//~
+var man1 = new Man('pursue');
+var man2 = new Man('joe');
+console.log(man1.say == man2.say);
+console.log(man1.name == man2.name);
+```
+寄生组合继承和上面的组合继承区别仅在于构造子类原型对象的方式上（！），这里用了Object.creat(obj)方法，该方法会对传入的obj对象进行浅拷贝，类似于：
+```
+function create(obj){
+    function T(){};
+    T.prototype = obj;
+    return new T();
+}
+```
+寄生组合继承方式对实例属性和原型属性分别进行了继承.
+
+注意:代码~.并不会改变instanceof的结果，但是对于需要用到construcor的场景，这么做更加严谨。
